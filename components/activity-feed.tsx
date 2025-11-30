@@ -55,6 +55,8 @@ export function ActivityFeed({
     const supabase = createClient()
     let channel: RealtimeChannel | null = null
 
+    console.log("[v0] Setting up Supabase Realtime subscription...")
+
     channel = supabase
       .channel("activities-realtime")
       .on(
@@ -65,11 +67,13 @@ export function ActivityFeed({
           table: "activities",
         },
         (payload) => {
+          console.log("[v0] Realtime INSERT received:", payload)
           const newActivity = payload.new as Activity
 
           // Add to the top of the list
           setActivities((prev) => {
             if (prev.some((a) => a.id === newActivity.id)) {
+              console.log("[v0] Activity already exists, skipping")
               return prev
             }
             return [newActivity, ...prev]
@@ -82,20 +86,28 @@ export function ActivityFeed({
             return updated
           })
 
-          if (areNotificationsEnabled()) {
-            showBrowserNotification(
-              `${newActivity.icon} ${newActivity.title}`,
-              newActivity.description || "",
-              newActivity.id,
-            )
-          }
+          setTimeout(() => {
+            const isEnabled = areNotificationsEnabled()
+            console.log("[v0] Notification enabled check after realtime:", isEnabled)
+
+            if (isEnabled) {
+              console.log("[v0] Triggering browser notification for:", newActivity.title)
+              showBrowserNotification(
+                newActivity.title,
+                newActivity.description || "فعالیت جدید در بلک لیست",
+                newActivity.id,
+              )
+            }
+          }, 100)
         },
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
+        console.log("[v0] Realtime subscription status:", status, err)
         setIsRealtimeConnected(status === "SUBSCRIBED")
       })
 
     return () => {
+      console.log("[v0] Cleaning up Realtime subscription")
       if (channel) {
         supabase.removeChannel(channel)
       }

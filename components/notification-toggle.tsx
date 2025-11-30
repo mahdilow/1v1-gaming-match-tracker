@@ -188,23 +188,67 @@ export function NotificationToggle({ showLabel = false, className }: Notificatio
 }
 
 export function areNotificationsEnabled(): boolean {
-  if (typeof window === "undefined" || !("Notification" in window)) {
+  if (typeof window === "undefined") {
+    console.log("[v0] areNotificationsEnabled: window undefined")
     return false
   }
-  return Notification.permission === "granted" && localStorage.getItem(STORAGE_KEY) === "true"
+  if (!("Notification" in window)) {
+    console.log("[v0] areNotificationsEnabled: Notification not supported")
+    return false
+  }
+
+  const permission = Notification.permission
+  const storageValue = localStorage.getItem(STORAGE_KEY)
+
+  console.log("[v0] areNotificationsEnabled check:", {
+    permission,
+    storageValue,
+    result: permission === "granted" && storageValue === "true",
+  })
+
+  return permission === "granted" && storageValue === "true"
 }
 
 export function showBrowserNotification(title: string, body: string, tag?: string) {
-  if (!areNotificationsEnabled()) return
+  console.log("[v0] showBrowserNotification called:", { title, body, tag })
+
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    console.log("[v0] Notification not supported in this environment")
+    return
+  }
+
+  const permission = Notification.permission
+  const storageValue = localStorage.getItem(STORAGE_KEY)
+
+  console.log("[v0] Notification check:", { permission, storageValue })
+
+  if (permission !== "granted") {
+    console.log("[v0] Notification permission not granted")
+    return
+  }
+
+  if (storageValue !== "true") {
+    console.log("[v0] Notifications disabled by user preference")
+    return
+  }
 
   try {
-    new Notification(title, {
+    const notification = new Notification(title, {
       body,
       icon: "/logo.png",
       tag: tag || `blacklist-${Date.now()}`,
       badge: "/logo.png",
+      requireInteraction: false,
+      silent: false,
     })
+
+    console.log("[v0] Notification created successfully:", notification)
+
+    notification.onclick = () => {
+      window.focus()
+      notification.close()
+    }
   } catch (error) {
-    console.error("Failed to show notification:", error)
+    console.error("[v0] Failed to show notification:", error)
   }
 }
