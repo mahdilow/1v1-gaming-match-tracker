@@ -9,9 +9,11 @@ import { BottomNav, PageHeader } from "@/components/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ShamsiDatePicker } from "@/components/shamsi-date-picker"
 import { cn } from "@/lib/utils"
 import { Trophy, Plus, X, Loader2, Check, UserPlus, Medal, Award } from "lucide-react"
 import type { Player } from "@/lib/types"
+import { generateTournamentActivity, checkAndGenerateMilestoneActivity } from "@/lib/activity-generator"
 
 interface Placement {
   position: number
@@ -24,7 +26,7 @@ export default function TournamentPage() {
   const router = useRouter()
   const [players, setPlayers] = useState<Player[]>([])
   const [name, setName] = useState("")
-  const [gameType, setGameType] = useState("")
+  const [gameType, setGameType] = useState("PES") // Default game type to PES
   const [date, setDate] = useState(new Date().toISOString().split("T")[0])
   const [placements, setPlacements] = useState<Placement[]>([
     { position: 1, playerId: "" },
@@ -96,10 +98,20 @@ export default function TournamentPage() {
     )
 
     if (!placementsError) {
+      const placementsWithPlayers = validPlacements.map((p) => ({
+        position: p.position,
+        player: players.find((pl) => pl.id === p.playerId)!,
+      }))
+
+      await generateTournamentActivity(tournament.id, name.trim(), placementsWithPlayers)
+
+      // Check for overall milestones
+      await checkAndGenerateMilestoneActivity()
+
       setShowSuccess(true)
       setTimeout(() => {
         setName("")
-        setGameType("")
+        setGameType("PES") // Reset game type to PES
         setDate(new Date().toISOString().split("T")[0])
         setPlacements([
           { position: 1, playerId: "" },
@@ -186,12 +198,7 @@ export default function TournamentPage() {
 
               <div>
                 <label className="text-sm text-muted-foreground mb-2 block">تاریخ</label>
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="bg-secondary border-0 h-12 rounded-xl"
-                />
+                <ShamsiDatePicker value={date} onChange={setDate} />
               </div>
             </div>
           </div>

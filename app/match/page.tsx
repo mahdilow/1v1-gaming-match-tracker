@@ -12,6 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils"
 import { Swords, Trophy, Loader2, Check, UserPlus } from "lucide-react"
 import type { Player } from "@/lib/types"
+import {
+  generateMatchActivity,
+  checkAndGenerateStreakActivity,
+  checkAndGenerateRivalryActivity,
+  checkAndGenerateMilestoneActivity,
+} from "@/lib/activity-generator"
 
 export default function RecordMatchPage() {
   const router = useRouter()
@@ -45,14 +51,34 @@ export default function RecordMatchPage() {
     setIsSubmitting(true)
     const supabase = createClient()
 
-    const { error } = await supabase.from("matches").insert({
-      player1_id: player1Id,
-      player2_id: player2Id,
-      winner_id: winnerId,
-      notes: notes.trim() || null,
-    })
+    const { data: match, error } = await supabase
+      .from("matches")
+      .insert({
+        player1_id: player1Id,
+        player2_id: player2Id,
+        winner_id: winnerId,
+        notes: notes.trim() || null,
+      })
+      .select()
+      .single()
 
-    if (!error) {
+    if (!error && match) {
+      const winner = players.find((p) => p.id === winnerId)!
+      const loserId = winnerId === player1Id ? player2Id : player1Id
+      const loser = players.find((p) => p.id === loserId)!
+
+      // Generate match result activity
+      await generateMatchActivity(match.id, winner, loser)
+
+      // Check for streak activity
+      await checkAndGenerateStreakActivity(winnerId)
+
+      // Check for rivalry milestone
+      await checkAndGenerateRivalryActivity(player1Id, player2Id)
+
+      // Check for overall milestones
+      await checkAndGenerateMilestoneActivity()
+
       setShowSuccess(true)
       setTimeout(() => {
         setPlayer1Id("")

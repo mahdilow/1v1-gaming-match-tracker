@@ -2,10 +2,11 @@ import { createClient } from "@/lib/supabase/server"
 import { BottomNav } from "@/components/navigation"
 import { StatsCard } from "@/components/stats-card"
 import { ActionCard } from "@/components/action-card"
-import { RecentActivity } from "@/components/recent-activity"
 import { PlayerCard } from "@/components/player-card"
-import { Users, Swords, Trophy, Medal, Target, Award } from "lucide-react"
-import type { Player, Match, Tournament, PlayerStats } from "@/lib/types"
+import { ActivityFeed } from "@/components/activity-feed"
+import { Users, Swords, Trophy, Medal, Award } from "lucide-react"
+import Image from "next/image"
+import type { Player, Match, Tournament, PlayerStats, Activity } from "@/lib/types"
 
 async function getDashboardData() {
   const supabase = await createClient()
@@ -35,11 +36,18 @@ async function getDashboardData() {
   // Get tournament placements for counting wins
   const { data: placements } = await supabase.from("tournament_placements").select("*")
 
+  const { data: activities } = await supabase
+    .from("activities")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(10)
+
   return {
     players: (players || []) as Player[],
     matches: (matches || []) as Match[],
     tournaments: (tournaments || []) as Tournament[],
     placements: placements || [],
+    activities: (activities || []) as Activity[],
   }
 }
 
@@ -68,7 +76,7 @@ function calculatePlayerStats(
 }
 
 export default async function HomePage() {
-  const { players, matches, tournaments, placements } = await getDashboardData()
+  const { players, matches, tournaments, placements, activities } = await getDashboardData()
 
   // Get all matches for stats calculation
   const supabase = await createClient()
@@ -81,22 +89,13 @@ export default async function HomePage() {
 
   const totalMatches = allMatches?.length || 0
 
-  // Combine recent activities
-  const activities = [
-    ...matches.map((m) => ({ type: "match" as const, data: m, date: new Date(m.played_at) })),
-    ...tournaments.map((t) => ({ type: "tournament" as const, data: t, date: new Date(t.tournament_date) })),
-  ]
-    .sort((a, b) => b.date.getTime() - a.date.getTime())
-    .slice(0, 5)
-    .map(({ type, data }) => ({ type, data }))
-
   return (
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="bg-gradient-to-b from-primary/20 to-background px-4 pt-8 pb-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="p-3 rounded-2xl bg-primary/20">
-            <Target className="h-8 w-8 text-primary" />
+          <div className="rounded-2xl overflow-hidden">
+            <Image src="/logo.png" alt="بلک لیست" width={56} height={56} className="h-14 w-14 object-contain" />
           </div>
           <div>
             <h1 className="text-2xl font-bold text-foreground">بلک لیست</h1>
@@ -146,10 +145,9 @@ export default async function HomePage() {
           </section>
         )}
 
-        {/* Recent Activity */}
         <section>
-          <h2 className="text-lg font-semibold text-foreground mb-3">فعالیت‌های اخیر</h2>
-          <RecentActivity activities={activities} />
+          <h2 className="text-lg font-semibold text-foreground mb-3">اخبار و فعالیت‌ها</h2>
+          <ActivityFeed initialActivities={activities} limit={10} showFilters showNotificationToggle />
         </section>
       </div>
 

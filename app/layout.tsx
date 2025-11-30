@@ -2,6 +2,7 @@ import type React from "react"
 import type { Metadata, Viewport } from "next"
 import { Vazirmatn } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
 import "./globals.css"
 
 const vazirmatn = Vazirmatn({
@@ -13,6 +14,16 @@ export const metadata: Metadata = {
   title: "بلک لیست | ردیاب مسابقات",
   description: "ردیاب مسابقات گیمینگ ۱ در مقابل ۱",
   generator: "v0.app",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "بلک لیست",
+  },
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 }
 
 export const viewport: Viewport = {
@@ -20,7 +31,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#1a1625",
+  themeColor: "#f97316",
 }
 
 export default function RootLayout({
@@ -32,6 +43,7 @@ export default function RootLayout({
     <html lang="fa" dir="rtl" className="dark">
       <body className={`${vazirmatn.className} font-sans antialiased min-h-screen`}>
         {children}
+        <PWAInstallPrompt />
         <Analytics />
       </body>
     </html>

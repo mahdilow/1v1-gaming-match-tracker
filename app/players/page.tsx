@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Plus, UserPlus, Loader2 } from "lucide-react"
 import type { Player, PlayerStats } from "@/lib/types"
+import { generateNewPlayerActivity } from "@/lib/activity-generator"
 
 export default function PlayersPage() {
   const [players, setPlayers] = useState<Player[]>([])
@@ -66,9 +67,15 @@ export default function PlayersPage() {
     setIsAdding(true)
     const supabase = createClient()
 
-    const { error } = await supabase.from("players").insert({ name: newPlayerName.trim() })
+    const { data: newPlayer, error } = await supabase
+      .from("players")
+      .insert({ name: newPlayerName.trim() })
+      .select()
+      .single()
 
-    if (!error) {
+    if (!error && newPlayer) {
+      await generateNewPlayerActivity(newPlayer as Player)
+
       setNewPlayerName("")
       setShowAddForm(false)
       await loadPlayers()

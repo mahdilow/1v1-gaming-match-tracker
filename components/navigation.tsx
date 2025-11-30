@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Home, Users, Swords, Trophy, Medal } from "lucide-react"
+import Image from "next/image"
 
 const navItems = [
   { href: "/", label: "خانه", icon: Home },
@@ -43,11 +44,20 @@ export function BottomNav() {
   )
 }
 
-export function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+export function PageHeader({
+  title,
+  subtitle,
+  showLogo = false,
+}: { title: string; subtitle?: string; showLogo?: boolean }) {
   return (
     <header className="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b border-border px-4 py-4">
-      <h1 className="text-xl font-bold text-foreground">{title}</h1>
-      {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
+      <div className="flex items-center gap-3">
+        {showLogo && <Image src="/logo.png" alt="بلک لیست" width={36} height={36} className="rounded-lg" />}
+        <div>
+          <h1 className="text-xl font-bold text-foreground">{title}</h1>
+          {subtitle && <p className="text-sm text-muted-foreground mt-0.5">{subtitle}</p>}
+        </div>
+      </div>
     </header>
   )
 }
