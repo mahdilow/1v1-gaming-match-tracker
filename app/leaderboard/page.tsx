@@ -1,0 +1,82 @@
+import { createClient } from "@/lib/supabase/server"
+import { BottomNav, PageHeader } from "@/components/navigation"
+import { PlayerCard } from "@/components/player-card"
+import { Medal } from "lucide-react"
+import type { Player, PlayerStats } from "@/lib/types"
+
+async function getLeaderboardData() {
+  const supabase = await createClient()
+
+  const [playersRes, matchesRes, placementsRes] = await Promise.all([
+    supabase.from("players").select("*"),
+    supabase.from("matches").select("*"),
+    supabase.from("tournament_placements").select("*"),
+  ])
+
+  return {
+    players: (playersRes.data || []) as Player[],
+    matches: matchesRes.data || [],
+    placements: placementsRes.data || [],
+  }
+}
+
+function calculateStats(
+  players: Player[],
+  matches: { player1_id: string; player2_id: string; winner_id: string }[],
+  placements: { player_id: string; placement: number }[],
+): PlayerStats[] {
+  return players
+    .map((player) => {
+      const playerMatches = matches.filter((m) => m.player1_id === player.id || m.player2_id === player.id)
+      const wins = matches.filter((m) => m.winner_id === player.id).length
+      const losses = playerMatches.length - wins
+      const tournamentWins = placements.filter((p) => p.player_id === player.id && p.placement === 1).length
+      const tournamentParticipations = placements.filter((p) => p.player_id === player.id).length
+
+      return {
+        player,
+        totalWins: wins,
+        totalLosses: losses,
+        totalMatches: playerMatches.length,
+        winPercentage: playerMatches.length > 0 ? (wins / playerMatches.length) * 100 : 0,
+        tournamentWins,
+        tournamentParticipations,
+      }
+    })
+    .sort((a, b) => {
+      // Sort by wins first
+      if (b.totalWins !== a.totalWins) return b.totalWins - a.totalWins
+      // Then by win percentage
+      if (b.winPercentage !== a.winPercentage) return b.winPercentage - a.winPercentage
+      // Then by total matches
+      return b.totalMatches - a.totalMatches
+    })
+}
+
+export default async function LeaderboardPage() {
+  const { players, matches, placements } = await getLeaderboardData()
+  const rankings = calculateStats(players, matches, placements)
+
+  return (
+    <div className="min-h-screen bg-background pb-24">
+      <PageHeader title="جدول امتیازات" subtitle="رتبه‌بندی کلی بازیکنان" />
+
+      <div className="px-4 py-4">
+        {rankings.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground">
+            <Medal className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p>هنوز بازیکنی ثبت نشده</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {rankings.map((stats, index) => (
+              <PlayerCard key={stats.player.id} stats={stats} rank={index + 1} showRank />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <BottomNav />
+    </div>
+  )
+}
