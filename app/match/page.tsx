@@ -76,7 +76,7 @@ export default function RecordMatchPage() {
       const loserId = winnerId === player1Id ? player2Id : player1Id
       const loser = players.find((p) => p.id === loserId)!
 
-      await generateMatchActivity(match.id, winner, loser, imageUrl)
+      await generateMatchActivity(match.id, winner, loser, imageUrl, notes.trim() || null)
 
       await checkAndGenerateStreakActivity(winnerId)
       await checkAndGenerateRivalryActivity(player1Id, player2Id)

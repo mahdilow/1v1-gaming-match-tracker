@@ -5,8 +5,9 @@ import { cn } from "@/lib/utils"
 import type { Activity } from "@/lib/types"
 import { formatDistanceToNow } from "date-fns"
 import { faIR } from "date-fns/locale"
-import { ImageIcon } from "lucide-react"
+import { ImageIcon, StickyNote } from "lucide-react"
 import { ImageViewerModal } from "./image-viewer-modal"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface ActivityCardProps {
   activity: Activity
@@ -31,6 +32,7 @@ export function ActivityCard({ activity, isNew }: ActivityCardProps) {
   const isRecent = Date.now() - new Date(activity.created_at).getTime() < 5 * 60 * 1000
 
   const hasImage = !!activity.metadata?.image_url
+  const hasNote = !!activity.metadata?.note
 
   return (
     <>
@@ -87,18 +89,34 @@ export function ActivityCard({ activity, isNew }: ActivityCardProps) {
             )}
           </div>
 
-          {/* Timestamp & Image indicator */}
+          {/* Timestamp & Icons */}
           <div className="flex flex-col items-end gap-1 shrink-0">
             <span className="text-xs text-muted-foreground">{timeAgo}</span>
-            {hasImage && (
-              <button
-                onClick={() => setShowImageModal(true)}
-                className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
-                title="مشاهده تصویر"
-              >
-                <ImageIcon className="h-4 w-4 text-muted-foreground" />
-              </button>
-            )}
+            <div className="flex items-center gap-1">
+              {hasNote && (
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors">
+                        <StickyNote className="h-4 w-4 text-yellow-500" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-[200px] text-right">
+                      <p className="text-sm">{activity.metadata.note}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+              {hasImage && (
+                <button
+                  onClick={() => setShowImageModal(true)}
+                  className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
+                  title="مشاهده تصویر"
+                >
+                  <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

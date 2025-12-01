@@ -10,22 +10,36 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>
 }
 
+function isPWAInstalled(): boolean {
+  // Check display-mode: standalone (works on most browsers)
+  if (window.matchMedia("(display-mode: standalone)").matches) return true
+
+  // Check iOS Safari standalone mode
+  if ((navigator as any).standalone === true) return true
+
+  // Check if running in TWA (Trusted Web Activity) on Android
+  if (document.referrer.includes("android-app://")) return true
+
+  // Check localStorage flag (set when user installs)
+  if (localStorage.getItem("pwa-installed") === "true") return true
+
+  return false
+}
+
 export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showPrompt, setShowPrompt] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
-  const [isStandalone, setIsStandalone] = useState(false)
 
   useEffect(() => {
-    // Check if already installed
-    const standalone = window.matchMedia("(display-mode: standalone)").matches
-    setIsStandalone(standalone)
+    if (isPWAInstalled()) {
+      return // Already installed, don't show prompt
+    }
 
     // Check if dismissed recently
     const dismissed = localStorage.getItem("pwa-install-dismissed")
     if (dismissed) {
       const dismissedTime = Number.parseInt(dismissed)
-      // Show again after 3 days
       if (Date.now() - dismissedTime < 3 * 24 * 60 * 60 * 1000) {
         return
       }
@@ -35,8 +49,7 @@ export function PWAInstallPrompt() {
     const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent)
     setIsIOS(isIOSDevice)
 
-    if (isIOSDevice && !standalone) {
-      // Show iOS install instructions after a delay
+    if (isIOSDevice) {
       setTimeout(() => setShowPrompt(true), 2000)
       return
     }
@@ -48,8 +61,19 @@ export function PWAInstallPrompt() {
       setTimeout(() => setShowPrompt(true), 2000)
     }
 
+    const installedHandler = () => {
+      localStorage.setItem("pwa-installed", "true")
+      setShowPrompt(false)
+      setDeferredPrompt(null)
+    }
+
     window.addEventListener("beforeinstallprompt", handler)
-    return () => window.removeEventListener("beforeinstallprompt", handler)
+    window.addEventListener("appinstalled", installedHandler)
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler)
+      window.removeEventListener("appinstalled", installedHandler)
+    }
   }, [])
 
   const handleInstall = async () => {
@@ -59,6 +83,7 @@ export function PWAInstallPrompt() {
     const { outcome } = await deferredPrompt.userChoice
 
     if (outcome === "accepted") {
+      localStorage.setItem("pwa-installed", "true")
       setShowPrompt(false)
     }
     setDeferredPrompt(null)
@@ -69,7 +94,7 @@ export function PWAInstallPrompt() {
     localStorage.setItem("pwa-install-dismissed", Date.now().toString())
   }
 
-  if (isStandalone || !showPrompt) return null
+  if (isPWAInstalled() || !showPrompt) return null
 
   return (
     <div className="fixed bottom-20 left-4 right-4 z-50 animate-in slide-in-from-bottom-4 duration-300">

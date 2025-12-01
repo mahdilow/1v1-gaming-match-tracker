@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { ActivityCard } from "./activity-card"
 import { NotificationToggle, showBrowserNotification, areNotificationsEnabled } from "./notification-toggle"
@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Loader2, RefreshCw, Wifi, WifiOff } from "lucide-react"
 import type { Activity } from "@/lib/types"
 import { cn } from "@/lib/utils"
-import type { RealtimeChannel } from "@supabase/supabase-js"
 
 type FilterType = "all" | "matches" | "tournaments"
 
@@ -36,6 +35,35 @@ export function ActivityFeed({
   const [newActivityIds, setNewActivityIds] = useState<Set<string>>(new Set())
   const [isRealtimeConnected, setIsRealtimeConnected] = useState(false)
 
+  const loadActivities = useCallback(
+    async (offset = 0) => {
+      const supabase = createClient()
+
+      const { data, error } = await supabase
+        .from("activities")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      if (!error && data) {
+        if (offset === 0) {
+          setActivities(data as Activity[])
+          if (data.length > 0 && !lastSeenId) {
+            localStorage.setItem(STORAGE_KEY, data[0].id)
+            setLastSeenId(data[0].id)
+          }
+        } else {
+          setActivities((prev) => [...prev, ...(data as Activity[])])
+        }
+        setHasMore(data.length === limit)
+      }
+
+      setIsLoading(false)
+      setIsLoadingMore(false)
+    },
+    [limit, lastSeenId],
+  )
+
   // Load initial activities and setup
   useEffect(() => {
     if (initialActivities.length === 0) {
@@ -49,16 +77,16 @@ export function ActivityFeed({
         setLastSeenId(stored)
       }
     }
-  }, [])
+  }, [initialActivities.length, loadActivities])
 
   useEffect(() => {
     const supabase = createClient()
-    let channel: RealtimeChannel | null = null
+    let pollInterval: NodeJS.Timeout | null = null
+    let lastActivityTime = activities[0]?.created_at || new Date().toISOString()
 
-    console.log("[v0] Setting up Supabase Realtime subscription...")
-
-    channel = supabase
-      .channel("activities-realtime")
+    // Try Realtime subscription
+    const channel = supabase
+      .channel(`activities-${Date.now()}`)
       .on(
         "postgres_changes",
         {
@@ -67,78 +95,61 @@ export function ActivityFeed({
           table: "activities",
         },
         (payload) => {
-          console.log("[v0] Realtime INSERT received:", payload)
           const newActivity = payload.new as Activity
-
-          // Add to the top of the list
-          setActivities((prev) => {
-            if (prev.some((a) => a.id === newActivity.id)) {
-              console.log("[v0] Activity already exists, skipping")
-              return prev
-            }
-            return [newActivity, ...prev]
-          })
-
-          // Mark as new
-          setNewActivityIds((prev) => {
-            const updated = new Set(prev)
-            updated.add(newActivity.id)
-            return updated
-          })
-
-          setTimeout(() => {
-            const isEnabled = areNotificationsEnabled()
-            console.log("[v0] Notification enabled check after realtime:", isEnabled)
-
-            if (isEnabled) {
-              console.log("[v0] Triggering browser notification for:", newActivity.title)
-              showBrowserNotification(
-                newActivity.title,
-                newActivity.description || "فعالیت جدید در بلک لیست",
-                newActivity.id,
-              )
-            }
-          }, 100)
+          handleNewActivity(newActivity)
         },
       )
-      .subscribe((status, err) => {
-        console.log("[v0] Realtime subscription status:", status, err)
+      .subscribe((status) => {
         setIsRealtimeConnected(status === "SUBSCRIBED")
+
+        // If Realtime fails, use polling as fallback
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          if (!pollInterval) {
+            pollInterval = setInterval(async () => {
+              const { data } = await supabase
+                .from("activities")
+                .select("*")
+                .gt("created_at", lastActivityTime)
+                .order("created_at", { ascending: false })
+
+              if (data && data.length > 0) {
+                data.reverse().forEach((activity) => {
+                  handleNewActivity(activity as Activity)
+                })
+                lastActivityTime = data[0].created_at
+              }
+            }, 5000)
+          }
+        }
       })
 
+    function handleNewActivity(newActivity: Activity) {
+      setActivities((prev) => {
+        if (prev.some((a) => a.id === newActivity.id)) {
+          return prev
+        }
+        return [newActivity, ...prev]
+      })
+
+      setNewActivityIds((prev) => {
+        const updated = new Set(prev)
+        updated.add(newActivity.id)
+        return updated
+      })
+
+      // Check and send notification
+      if (areNotificationsEnabled()) {
+        showBrowserNotification(newActivity.title, newActivity.description || "فعالیت جدید در بلک لیست", newActivity.id)
+      }
+    }
+
     return () => {
-      console.log("[v0] Cleaning up Realtime subscription")
-      if (channel) {
-        supabase.removeChannel(channel)
+      supabase.removeChannel(channel)
+      if (pollInterval) {
+        clearInterval(pollInterval)
       }
     }
   }, [])
-
-  async function loadActivities(offset = 0) {
-    const supabase = createClient()
-
-    const { data, error } = await supabase
-      .from("activities")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1)
-
-    if (!error && data) {
-      if (offset === 0) {
-        setActivities(data as Activity[])
-        if (data.length > 0 && !lastSeenId) {
-          localStorage.setItem(STORAGE_KEY, data[0].id)
-          setLastSeenId(data[0].id)
-        }
-      } else {
-        setActivities((prev) => [...prev, ...(data as Activity[])])
-      }
-      setHasMore(data.length === limit)
-    }
-
-    setIsLoading(false)
-    setIsLoadingMore(false)
-  }
 
   function loadMore() {
     setIsLoadingMore(true)
@@ -208,7 +219,7 @@ export function ActivityFeed({
               "flex items-center gap-1 text-xs",
               isRealtimeConnected ? "text-success" : "text-muted-foreground",
             )}
-            title={isRealtimeConnected ? "متصل به سرور" : "قطع اتصال"}
+            title={isRealtimeConnected ? "متصل به سرور" : "حالت پولینگ"}
           >
             {isRealtimeConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
           </div>

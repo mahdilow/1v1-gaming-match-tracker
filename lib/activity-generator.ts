@@ -37,7 +37,13 @@ export async function createActivity(params: CreateActivityParams) {
 }
 
 // Generate match result activity
-export async function generateMatchActivity(matchId: string, winner: Player, loser: Player, imageUrl?: string | null) {
+export async function generateMatchActivity(
+  matchId: string,
+  winner: Player,
+  loser: Player,
+  imageUrl?: string | null,
+  note?: string | null,
+) {
   await createActivity({
     type: "match_result",
     title: `${winner.name} پیروز شد!`,
@@ -50,6 +56,7 @@ export async function generateMatchActivity(matchId: string, winner: Player, los
       loser_id: loser.id,
       loser_name: loser.name,
       image_url: imageUrl || undefined, // Include image URL in metadata
+      note: note || undefined, // Include note in metadata
     },
     related_match_id: matchId,
     related_player_id: winner.id,

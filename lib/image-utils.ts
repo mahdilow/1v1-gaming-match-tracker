@@ -39,6 +39,25 @@ export async function compressImage(file: File, maxWidth = 800, quality = 0.7): 
   })
 }
 
+function base64ToBlob(base64Data: string): Blob {
+  // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+  const parts = base64Data.split(",")
+  const mimeMatch = parts[0].match(/:(.*?);/)
+  const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg"
+  const base64 = parts[1]
+
+  // Decode base64 string
+  const byteCharacters = atob(base64)
+  const byteNumbers = new Array(byteCharacters.length)
+
+  for (let i = 0; i < byteCharacters.length; i++) {
+    byteNumbers[i] = byteCharacters.charCodeAt(i)
+  }
+
+  const byteArray = new Uint8Array(byteNumbers)
+  return new Blob([byteArray], { type: mimeType })
+}
+
 // Upload image to Supabase storage and return public URL
 export async function uploadImageToSupabase(
   supabase: ReturnType<typeof import("@/lib/supabase/client").createClient>,
@@ -46,9 +65,7 @@ export async function uploadImageToSupabase(
   folder: "matches" | "tournaments",
 ): Promise<string | null> {
   try {
-    // Convert base64 to blob
-    const response = await fetch(base64Data)
-    const blob = await response.blob()
+    const blob = base64ToBlob(base64Data)
 
     // Generate unique filename
     const filename = `${folder}/${Date.now()}-${Math.random().toString(36).substring(7)}.jpg`
@@ -60,8 +77,8 @@ export async function uploadImageToSupabase(
     })
 
     if (error) {
-      console.error("Upload error:", error)
-      return null
+      console.error("Upload error:", error.message)
+      throw new Error(error.message)
     }
 
     // Get public URL
@@ -71,8 +88,8 @@ export async function uploadImageToSupabase(
 
     return publicUrl
   } catch (err) {
-    console.error("Image upload failed:", err)
-    return null
+    console.error("Upload error:", err instanceof Error ? err.message : err)
+    throw err
   }
 }
 
