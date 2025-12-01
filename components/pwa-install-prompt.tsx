@@ -11,6 +11,9 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 function isPWAInstalled(): boolean {
+  // Guard against SSR
+  if (typeof window === "undefined") return false
+
   // Check display-mode: standalone (works on most browsers)
   if (window.matchMedia("(display-mode: standalone)").matches) return true
 
@@ -30,9 +33,13 @@ export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showPrompt, setShowPrompt] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
+  const [isInstalled, setIsInstalled] = useState(true) // Default true to hide during SSR
 
   useEffect(() => {
-    if (isPWAInstalled()) {
+    const installed = isPWAInstalled()
+    setIsInstalled(installed)
+
+    if (installed) {
       return // Already installed, don't show prompt
     }
 
@@ -65,6 +72,7 @@ export function PWAInstallPrompt() {
       localStorage.setItem("pwa-installed", "true")
       setShowPrompt(false)
       setDeferredPrompt(null)
+      setIsInstalled(true)
     }
 
     window.addEventListener("beforeinstallprompt", handler)
@@ -85,6 +93,7 @@ export function PWAInstallPrompt() {
     if (outcome === "accepted") {
       localStorage.setItem("pwa-installed", "true")
       setShowPrompt(false)
+      setIsInstalled(true)
     }
     setDeferredPrompt(null)
   }
@@ -94,7 +103,7 @@ export function PWAInstallPrompt() {
     localStorage.setItem("pwa-install-dismissed", Date.now().toString())
   }
 
-  if (isPWAInstalled() || !showPrompt) return null
+  if (isInstalled || !showPrompt) return null
 
   return (
     <div className="fixed bottom-20 left-4 right-4 z-50 animate-in slide-in-from-bottom-4 duration-300">
