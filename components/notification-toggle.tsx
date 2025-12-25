@@ -77,13 +77,6 @@ export function NotificationToggle({ showLabel = false, className }: Notificatio
           localStorage.setItem(STORAGE_KEY, "true")
           setState("enabled")
           showToast("اعلان‌ها فعال شدند! وقتی برنامه باز است اعلان دریافت می‌کنید", false)
-
-          // Show a test notification
-          new Notification("بلک لیست 🎮", {
-            body: "اعلان‌ها با موفقیت فعال شدند!",
-            icon: "/logo.png",
-            tag: "test-notification",
-          })
         }
       }
     } catch (error) {
