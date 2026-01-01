@@ -69,7 +69,7 @@ export default function TournamentPage() {
 
   async function submitTournament(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim() || !placements[0]?.playerId) return
+    if (!name.trim() || placements.filter((p) => p.playerId).length < 3) return
 
     setIsSubmitting(true)
     const supabase = createClient()
@@ -154,6 +154,9 @@ export default function TournamentPage() {
       </div>
     )
   }
+
+  const validPlacementsCount = placements.filter((p) => p.playerId).length
+  const canSubmit = name.trim() && validPlacementsCount >= 3
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -279,13 +282,18 @@ export default function TournamentPage() {
           </div>
 
           {/* Submit */}
-          <Button
-            type="submit"
-            disabled={!name.trim() || !placements[0]?.playerId || isSubmitting}
-            className="w-full h-14 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90"
-          >
-            {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "ثبت تورنمنت"}
-          </Button>
+          <div className="space-y-2">
+            <Button
+              type="submit"
+              disabled={!canSubmit || isSubmitting}
+              className="w-full h-14 rounded-xl bg-accent text-accent-foreground hover:bg-accent/90"
+            >
+              {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "ثبت تورنمنت"}
+            </Button>
+            {validPlacementsCount < 3 && name.trim() && (
+              <p className="text-xs text-center text-destructive">برای ثبت تورنمنت حداقل ۳ بازیکن لازم است</p>
+            )}
+          </div>
         </form>
       )}
 

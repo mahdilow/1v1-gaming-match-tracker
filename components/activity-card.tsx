@@ -8,6 +8,17 @@ import { faIR } from "date-fns/locale"
 import { ImageIcon, StickyNote } from "lucide-react"
 import { ImageViewerModal } from "./image-viewer-modal"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer"
+import { Button } from "./ui/button"
 
 interface ActivityCardProps {
   activity: Activity
@@ -94,18 +105,49 @@ export function ActivityCard({ activity, isNew }: ActivityCardProps) {
             <span className="text-xs text-muted-foreground">{timeAgo}</span>
             <div className="flex items-center gap-1">
               {hasNote && (
-                <TooltipProvider delayDuration={0}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors">
-                        <StickyNote className="h-4 w-4 text-yellow-500" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="max-w-[200px] text-right">
-                      <p className="text-sm">{activity.metadata.note}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <>
+                  {/* Desktop Tooltip */}
+                  <div className="hidden sm:block">
+                    <TooltipProvider delayDuration={0}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors">
+                            <StickyNote className="h-4 w-4 text-yellow-500" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-[200px] text-right">
+                          <p className="text-sm">{activity.metadata.note}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  {/* Mobile Drawer */}
+                  <div className="sm:hidden">
+                    <Drawer>
+                      <DrawerTrigger asChild>
+                        <button className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors">
+                          <StickyNote className="h-4 w-4 text-yellow-500" />
+                        </button>
+                      </DrawerTrigger>
+                      <DrawerContent>
+                        <div className="mx-auto w-full max-w-sm">
+                          <DrawerHeader className="text-right">
+                            <DrawerTitle>یادداشت مسابقه</DrawerTitle>
+                            <DrawerDescription>{activity.title}</DrawerDescription>
+                          </DrawerHeader>
+                          <div className="p-4 text-right">
+                            <p className="text-foreground bg-secondary/30 p-4 rounded-xl">{activity.metadata.note}</p>
+                          </div>
+                          <DrawerFooter>
+                            <DrawerClose asChild>
+                              <Button variant="outline">بستن</Button>
+                            </DrawerClose>
+                          </DrawerFooter>
+                        </div>
+                      </DrawerContent>
+                    </Drawer>
+                  </div>
+                </>
               )}
               {hasImage && (
                 <button
